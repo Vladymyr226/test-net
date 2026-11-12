@@ -1,0 +1,15 @@
+# build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+TestResults/
+*.trx
+.DS_Store
+
+# local settings (template: .env.example)
+.env

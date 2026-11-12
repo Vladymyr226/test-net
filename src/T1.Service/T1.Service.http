@@ -1,0 +1,41 @@
+@host = http://localhost:8080
+
+### Endpoints
+GET {{host}}/api
+
+### t1 on the primary and on the replica, partitions with row counts
+GET {{host}}/api/stats
+
+### Latest operations (watch state go 0 -> 1)
+GET {{host}}/api/operations?limit=10
+
+### Add an operation (state = 0); every field is optional
+POST {{host}}/api/operations
+Content-Type: application/json
+
+{
+  "amount": 150.25,
+  "clientId": 42,
+  "operationType": "online"
+}
+
+### Duplicate operation guid -> 409 Conflict (send twice)
+POST {{host}}/api/operations
+Content-Type: application/json
+
+{
+  "operationGuid": "01a1cf00-0000-7000-8000-000000000001",
+  "amount": 1
+}
+
+### Operation by guid
+GET {{host}}/api/operations/01a1cf00-0000-7000-8000-000000000001
+
+### Run the 0 -> 1 confirmation right now (parity of the current second)
+POST {{host}}/api/operations/confirm
+
+### Materialized view t1_client_totals
+GET {{host}}/api/client-totals?clientId=42
+
+### Logical replication status and primary/replica comparison
+GET {{host}}/api/replication

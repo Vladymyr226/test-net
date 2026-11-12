@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <Description>T1 service: database bootstrap, Quartz.NET scheduled jobs and a small HTTP API.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Quartz.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\T1.Core\T1.Core.csproj" />
+  </ItemGroup>
+
+</Project>

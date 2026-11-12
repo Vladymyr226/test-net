@@ -1,0 +1,89 @@
+# All values come from .env
+name: t1
+
+x-postgres: &postgres
+  image: ${POSTGRES_IMAGE:?}
+  restart: unless-stopped
+  environment:
+    POSTGRES_DB: ${POSTGRES_DB:?}
+    POSTGRES_USER: ${POSTGRES_USER:?}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    TZ: ${TZ:?}
+  healthcheck:
+    # TCP on purpose: during initdb the server listens on the unix socket only
+    test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:?} -d ${POSTGRES_DB:?}"]
+    interval: 2s
+    timeout: 3s
+    retries: 30
+
+services:
+  pg-primary:
+    <<: *postgres
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=${PRIMARY_MAX_REPLICATION_SLOTS:?}
+      - -c
+      - max_wal_senders=${PRIMARY_MAX_WAL_SENDERS:?}
+      - -c
+      - max_slot_wal_keep_size=${PRIMARY_MAX_SLOT_WAL_KEEP_SIZE:?}
+    ports:
+      - "127.0.0.1:${T1_PRIMARY_PORT:?}:5432"
+    volumes:
+      - pg-primary-data:/var/lib/postgresql
+
+  pg-replica:
+    <<: *postgres
+    command:
+      - postgres
+      - -c
+      - max_logical_replication_workers=${REPLICA_MAX_LOGICAL_REPLICATION_WORKERS:?}
+    ports:
+      - "127.0.0.1:${T1_REPLICA_PORT:?}:5432"
+    volumes:
+      - pg-replica-data:/var/lib/postgresql
+
+  t1-service:
+    init: true   # a real init as PID 1: forwards signals, reaps processes
+    stop_grace_period: 15s
+    build:
+      context: .
+      dockerfile: src/T1.Service/Dockerfile
+      args:
+        DOTNET_SDK_IMAGE: ${DOTNET_SDK_IMAGE:?}
+        DOTNET_RUNTIME_IMAGE: ${DOTNET_RUNTIME_IMAGE:?}
+    restart: unless-stopped
+    depends_on:   # the replica is set up in the background, the service does not wait for it
+      pg-primary:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:?}
+      ConnectionStrings__Primary: Host=pg-primary;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__Replica: Host=pg-replica;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      # address of the primary as seen from the replica
+      Replication__PublisherHost: pg-primary
+      Replication__PublisherPort: "5432"
+      Replication__SubscriptionName: ${REPLICATION_SUBSCRIPTION:?}
+      Replication__User: ${REPLICATION_USER:?}
+      Replication__Password: ${REPLICATION_PASSWORD:?}
+      Replication__CheckIntervalSeconds: ${REPLICATION_CHECK_INTERVAL_SECONDS:?}
+      Seed__Enabled: ${SEED_ENABLED:?}
+      Seed__Rows: ${SEED_ROWS:?}
+      Seed__Months: ${SEED_MONTHS:?}
+      Seed__Clients: ${SEED_CLIENTS:?}
+      Seed__PendingShare: ${SEED_PENDING_SHARE:?}
+      Seed__BatchSize: ${SEED_BATCH_SIZE:?}
+      Jobs__AddOperation__Enabled: ${JOB_ADD_OPERATION_ENABLED:?}
+      Jobs__AddOperation__Cron: ${JOB_ADD_OPERATION_CRON:?}
+      Jobs__ConfirmOperations__Enabled: ${JOB_CONFIRM_OPERATIONS_ENABLED:?}
+      Jobs__ConfirmOperations__Cron: ${JOB_CONFIRM_OPERATIONS_CRON:?}
+      Jobs__PartitionMaintenance__Cron: ${JOB_PARTITION_MAINTENANCE_CRON:?}
+      Partitions__MonthsAhead: ${PARTITIONS_MONTHS_AHEAD:?}
+    ports:
+      - "127.0.0.1:${T1_API_PORT:?}:8080"
+
+volumes:
+  pg-primary-data:
+  pg-replica-data:

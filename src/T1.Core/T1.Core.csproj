@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Database layer of the T1 test task: migrations, partitions, seeding, logical replication, operations API.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <!-- SQL migrations live in /db (readable without the code) and are embedded as db/<folder>/<file>.sql -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\db\**\*.sql" LogicalName="db/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>
